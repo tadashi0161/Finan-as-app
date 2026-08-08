@@ -153,7 +153,7 @@
     <input type="text" id="fQuando" placeholder="07/08" inputmode="numeric" maxlength="5" oninput="formatQuando(this)" style="flex:1;">
     <button type="button" class="btn-icon" onclick="abrirCalendario()">📅</button>
   </div>
-  <input type="date" id="fQuandoPicker" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" onchange="onPickerChange()">
+  <input type="date" id="fQuandoPicker" style="position:absolute; left:-9999px; top:0; opacity:0;" onchange="onPickerChange()">
 
   <label class="field-label">Classificação</label>
   <div id="recentChips"></div>
