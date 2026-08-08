@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Despesas e Receitas</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --accent: #0d61df;
+    --accent2: #16a34a;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; text-align: center; }
+
+  #pinScreen, #mainScreen, #confirmScreen { width: 100%; max-width: 420px; }
+  #mainScreen, #confirmScreen { display: none; }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #30363d;
+    background: var(--card);
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  button {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-record { background: var(--accent2); color: white; font-size: 1.1rem; padding: 20px; }
+  .btn-record.recording { background: var(--danger); }
+  .btn-secondary { background: #21262d; color: var(--text); border: 1px solid #30363d; }
+  .btn-icon {
+    width: 52px;
+    flex-shrink: 0;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #21262d;
+    color: var(--text);
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    font-size: 1.1rem;
+  }
+
+  .field-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; display: block; }
+  .status { text-align: center; color: var(--muted); font-size: 0.9rem; min-height: 20px; margin: 10px 0; }
+  .divider { text-align: center; color: var(--muted); margin: 16px 0; font-size: 0.8rem; }
+  .hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin: 4px 0 14px;
+    padding: 10px 12px;
+    background: var(--card);
+    border-radius: 10px;
+    border: 1px solid #30363d;
+  }
+  .hint em { color: #a5b4c3; font-style: normal; }
+
+  #recentChips { display: none; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    width: auto;
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    background: rgba(13,97,223,0.12);
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 0;
+  }
+  .chip-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+
+  #macroButtons { display: flex; gap: 6px; margin-bottom: 10px; }
+  .segbtn {
+    flex: 1;
+    width: auto;
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 1px solid #30363d;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 0;
+  }
+  .segbtn.active { background: var(--accent); border-color: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<h1>💸 Despesas e Receitas</h1>
+<div class="sub">Grave um áudio ou digite — confirme antes de salvar</div>
+
+<!-- TELA DE PIN -->
+<div id="pinScreen">
+  <label class="field-label">PIN desta planilha</label>
+  <input type="password" id="pinInput" inputmode="numeric" placeholder="••••">
+  <button class="btn-primary" onclick="verifyPin()">Entrar</button>
+  <div class="status" id="pinStatus"></div>
+</div>
+
+<!-- TELA PRINCIPAL -->
+<div id="mainScreen">
+  <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎙️ Toque para gravar</button>
+  <div class="hint">
+    🗣️ Diga o valor, o que foi e quando (se não for hoje)<br>
+    <em>Ex: "33 reais na padaria hoje" ou "800 reais em roupa, parcelado em 3x"</em>
+  </div>
+  <div class="status" id="recStatus"></div>
+  <div class="divider">— ou —</div>
+  <button class="btn-secondary" onclick="openManualEntry()">✍️ Preencher manualmente</button>
+</div>
+
+<!-- TELA DE CONFIRMAÇÃO -->
+<div id="confirmScreen">
+  <label class="field-label">Valor (R$)</label>
+  <input type="number" step="0.01" id="fValor">
+
+  <label class="field-label">Quando (DD/MM)</label>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="fQuando" placeholder="07/08" inputmode="numeric" maxlength="5" oninput="formatQuando(this)" style="flex:1;">
+    <button type="button" class="btn-icon" onclick="abrirCalendario()">📅</button>
+  </div>
+  <input type="date" id="fQuandoPicker" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;" onchange="onPickerChange()">
+
+  <label class="field-label">Classificação</label>
+  <div id="recentChips"></div>
+  <div id="macroButtons"></div>
+  <select id="fSub"></select>
+
+  <label class="field-label">Parcelado? (nº de parcelas, se houver)</label>
+  <input type="text" id="fParcelado">
+
+  <label class="field-label">Descrição complementar</label>
+  <input type="text" id="fDescricao">
+
+  <button class="btn-primary" onclick="confirmSave()">✅ Confirmar e salvar</button>
+  <button class="btn-secondary" onclick="cancelConfirm()">Cancelar</button>
+  <div class="status" id="saveStatus"></div>
+</div>
+
+<script>
+// ===========================================================
+// IMPORTANTE: cole aqui a URL do seu App da Web do Apps Script
+// (a que termina em /exec), gerada em Implantar > Nova implantação
+// ===========================================================
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeGTXxVviBg7keC2_oKFCbMhm1knlYmDVzeTRQDkUpJN4cEFusJ-E9kPZ2Je2rU04g/exec";
+
+// Pega o ID da planilha da própria URL desta página (?sheet=...)
+const SHEET_ID = new URLSearchParams(window.location.search).get("sheet") || "";
+
+let PIN = localStorage.getItem("pin_" + SHEET_ID) || "";
+let categorias = [];
+
+// mostra a tela certa ao carregar
+window.onload = async function() {
+  if (!SHEET_ID) {
+    document.querySelector(".sub").innerText = "Link inválido: falta ?sheet=ID_DA_PLANILHA na URL.";
+    return;
+  }
+  if (PIN) {
+    document.getElementById("pinScreen").style.display = "none";
+    document.getElementById("mainScreen").style.display = "block";
+    const res = await callServer({ action: "verify_pin", sheetId: SHEET_ID, pin: PIN });
+    if (res.ok) {
+      categorias = res.categorias || [];
+    } else {
+      localStorage.removeItem("pin_" + SHEET_ID);
+      PIN = "";
+      document.getElementById("mainScreen").style.display = "none";
+      document.getElementById("pinScreen").style.display = "block";
+    }
+  }
+};
+
+// Chama o backend via fetch (POST simples, sem cabeçalhos customizados,
+// para não disparar preflight de CORS que o Apps Script não trata).
+async function callServer(payload) {
+  const response = await fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return await response.json();
+}
+
+async function verifyPin() {
+  const pin = document.getElementById("pinInput").value;
+  document.getElementById("pinStatus").innerText = "Verificando...";
+  try {
+    const res = await callServer({ action: "verify_pin", sheetId: SHEET_ID, pin: pin });
+    if (res.ok) {
+      PIN = pin;
+      categorias = res.categorias || [];
+      localStorage.setItem("pin_" + SHEET_ID, pin);
+      document.getElementById("pinScreen").style.display = "none";
+      document.getElementById("mainScreen").style.display = "block";
+    } else {
+      document.getElementById("pinStatus").innerText = "PIN incorreto.";
+    }
+  } catch (err) {
+    document.getElementById("pinStatus").innerText = "Erro de conexão: " + err.message;
+  }
+}
+
+// ---- Formatação automática da data (digita "0108" -> vira "01/08") ----
+function formatQuando(el) {
+  let digits = el.value.replace(/\D/g, "").slice(0, 4);
+  el.value = digits.length > 2 ? digits.slice(0, 2) + "/" + digits.slice(2) : digits;
+}
+
+// ---- Calendário nativo como alternativa a digitar ----
+function abrirCalendario() {
+  const picker = document.getElementById("fQuandoPicker");
+  try {
+    if (picker.showPicker) {
+      picker.showPicker();
+      return;
+    }
+  } catch (e) {
+    // showPicker pode falhar em alguns navegadores; cai no fallback abaixo
+  }
+  picker.focus();
+  picker.click();
+}
+
+function onPickerChange() {
+  const val = document.getElementById("fQuandoPicker").value; // formato YYYY-MM-DD
+  if (!val) return;
+  const [, m, d] = val.split("-");
+  document.getElementById("fQuando").value = d + "/" + m;
+}
+
+// ---- Preenchimento manual (mesmos campos do formulário original, sem texto livre) ----
+function todayDDMM() {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return dd + "/" + mm;
+}
+
+// ---- Classificação em dois níveis: macro (Fixa/Variável/Receita/Outros) -> subcategoria ----
+let grupos = {};
+
+function agruparCategorias(lista) {
+  const g = { "Fixa": [], "Variável": [], "Receita": [], "Outros": [] };
+  lista.forEach(c => {
+    if (c.startsWith("Fixa: ")) g["Fixa"].push({ full: c, label: c.slice(6) });
+    else if (c.startsWith("Variável: ")) g["Variável"].push({ full: c, label: c.slice(10) });
+    else if (c.startsWith("Receita: ")) g["Receita"].push({ full: c, label: c.slice(9) });
+    else g["Outros"].push({ full: c, label: c });
+  });
+  return g;
+}
+
+function popularMacro() {
+  grupos = agruparCategorias(categorias);
+  const box = document.getElementById("macroButtons");
+  box.innerHTML = Object.keys(grupos)
+    .filter(k => grupos[k].length > 0)
+    .map(k => `<button type="button" class="segbtn" data-macro="${k}" onclick="selecionarMacro('${k}')">${k}</button>`)
+    .join("");
+}
+
+function selecionarMacro(macro) {
+  document.querySelectorAll("#macroButtons .segbtn").forEach(b => {
+    b.classList.toggle("active", b.dataset.macro === macro);
+  });
+  const subSel = document.getElementById("fSub");
+  subSel.innerHTML = grupos[macro].map(item => `<option value="${item.full}">${item.label}</option>`).join("");
+}
+
+function setClassificacao(fullValue) {
+  for (const macro in grupos) {
+    const item = grupos[macro].find(i => i.full === fullValue);
+    if (item) {
+      selecionarMacro(macro);
+      document.getElementById("fSub").value = fullValue;
+      return;
+    }
+  }
+  const primeiro = Object.keys(grupos).find(k => grupos[k].length > 0);
+  if (primeiro) selecionarMacro(primeiro);
+}
+
+// ---- Categorias usadas recentemente (atalho de um toque, guardado no celular) ----
+function recentKey() { return "recentes_" + SHEET_ID; }
+
+function getRecentes() {
+  try { return JSON.parse(localStorage.getItem(recentKey())) || []; }
+  catch (e) { return []; }
+}
+
+function labelSemPrefixo(full) {
+  for (const p of ["Fixa: ", "Variável: ", "Receita: "]) {
+    if (full.startsWith(p)) return full.slice(p.length);
+  }
+  return full;
+}
+
+function adicionarRecente(full) {
+  if (!full) return;
+  let r = getRecentes().filter(x => x !== full);
+  r.unshift(full);
+  r = r.slice(0, 6);
+  localStorage.setItem(recentKey(), JSON.stringify(r));
+}
+
+function renderRecentChips() {
+  const box = document.getElementById("recentChips");
+  const recentes = getRecentes().filter(f => categorias.includes(f));
+  if (recentes.length === 0) {
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+  box.style.display = "flex";
+  box.innerHTML =
+    `<div class="chip-label" style="width:100%;">Usadas recentemente:</div>` +
+    recentes.map(f =>
+      `<button type="button" class="chip" onclick="setClassificacao('${f.replace(/'/g, "\\'")}')">${labelSemPrefixo(f)}</button>`
+    ).join("");
+}
+
+function openManualEntry() {
+  popularMacro();
+  setClassificacao("");
+  renderRecentChips();
+
+  document.getElementById("fValor").value = "";
+  document.getElementById("fQuando").value = todayDDMM();
+  document.getElementById("fParcelado").value = "";
+  document.getElementById("fDescricao").value = "";
+
+  document.getElementById("mainScreen").style.display = "none";
+  document.getElementById("confirmScreen").style.display = "block";
+}
+
+// ---- Gravação de áudio ----
+let mediaRecorder, chunks = [];
+
+async function toggleRecording() {
+  const btn = document.getElementById("recordBtn");
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Este navegador não suporta gravação de áudio (navigator.mediaDevices indisponível).");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = onRecordingStop;
+      mediaRecorder.start();
+      btn.innerText = "⏹️ Toque para parar";
+      btn.classList.add("recording");
+      document.getElementById("recStatus").innerText = "🔴 Gravando...";
+    } catch (err) {
+      alert("Não consegui acessar o microfone: " + err.name + " - " + err.message);
+      document.getElementById("recStatus").innerText = "Erro ao acessar o microfone.";
+    }
+  } else {
+    mediaRecorder.stop();
+    btn.innerText = "🎙️ Toque para gravar";
+    btn.classList.remove("recording");
+    document.getElementById("recStatus").innerText = "";
+  }
+}
+
+function onRecordingStop() {
+  const blob = new Blob(chunks, { type: "audio/webm" });
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const base64 = reader.result.split(",")[1];
+    document.getElementById("recStatus").innerText = "Transcrevendo e extraindo dados...";
+    try {
+      const res = await callServer({ action: "extract", sheetId: SHEET_ID, pin: PIN, audioBase64: base64, mimeType: "audio/webm" });
+      document.getElementById("recStatus").innerText = "";
+      handleExtractResult(res);
+    } catch (err) {
+      document.getElementById("recStatus").innerText = "Erro de conexão: " + err.message;
+    }
+  };
+  reader.readAsDataURL(blob);
+}
+
+function handleExtractResult(res) {
+  if (res.error) { alert("Erro: " + res.error); return; }
+  categorias = res.categorias;
+  popularMacro();
+
+  document.getElementById("fValor").value = res.data.valor || "";
+  document.getElementById("fQuando").value = res.data.quando || "";
+  document.getElementById("fParcelado").value = res.data.parcelado || "";
+  document.getElementById("fDescricao").value = res.data.descricao || "";
+  setClassificacao(res.data.classificacao || "");
+  renderRecentChips();
+
+  document.getElementById("mainScreen").style.display = "none";
+  document.getElementById("confirmScreen").style.display = "block";
+}
+
+function cancelConfirm() {
+  document.getElementById("confirmScreen").style.display = "none";
+  document.getElementById("mainScreen").style.display = "block";
+}
+
+async function confirmSave() {
+  const record = {
+    valor: document.getElementById("fValor").value,
+    quando: document.getElementById("fQuando").value,
+    classificacao: document.getElementById("fSub").value,
+    parcelado: document.getElementById("fParcelado").value,
+    descricao: document.getElementById("fDescricao").value
+  };
+  document.getElementById("saveStatus").innerText = "Salvando...";
+  try {
+    const res = await callServer({ action: "save", sheetId: SHEET_ID, pin: PIN, record: record });
+    if (res.ok) {
+      adicionarRecente(record.classificacao);
+      document.getElementById("saveStatus").innerText = "✅ Salvo!";
+      setTimeout(() => {
+        document.getElementById("confirmScreen").style.display = "none";
+        document.getElementById("mainScreen").style.display = "block";
+        document.getElementById("saveStatus").innerText = "";
+      }, 1200);
+    } else {
+      document.getElementById("saveStatus").innerText = "Erro: " + res.error;
+    }
+  } catch (err) {
+    document.getElementById("saveStatus").innerText = "Erro de conexão: " + err.message;
+  }
+}
+</script>
+</body>
+</html>
