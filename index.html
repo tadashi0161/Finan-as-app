@@ -368,7 +368,7 @@ function openManualEntry() {
 }
 
 // ---- Gravação de áudio ----
-let mediaRecorder, chunks = [];
+let mediaRecorder, chunks = [], activeStream = null;
 
 async function toggleRecording() {
   const btn = document.getElementById("recordBtn");
@@ -378,8 +378,8 @@ async function toggleRecording() {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(activeStream);
       chunks = [];
       mediaRecorder.ondataavailable = e => chunks.push(e.data);
       mediaRecorder.onstop = onRecordingStop;
@@ -393,6 +393,11 @@ async function toggleRecording() {
     }
   } else {
     mediaRecorder.stop();
+    // Libera o microfone de verdade — parar o MediaRecorder sozinho não desliga o acesso.
+    if (activeStream) {
+      activeStream.getTracks().forEach(track => track.stop());
+      activeStream = null;
+    }
     btn.innerText = "🎙️ Toque para gravar";
     btn.classList.remove("recording");
     document.getElementById("recStatus").innerText = "";
