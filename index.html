@@ -151,9 +151,12 @@
   <label class="field-label">Quando (DD/MM)</label>
   <div style="display:flex; gap:8px;">
     <input type="text" id="fQuando" placeholder="07/08" inputmode="numeric" maxlength="5" oninput="formatQuando(this)" style="flex:1;">
-    <button type="button" class="btn-icon" onclick="abrirCalendario()">📅</button>
+    <div style="position:relative; width:52px; flex-shrink:0;">
+      <button type="button" class="btn-icon" style="width:100%; pointer-events:none;">📅</button>
+      <input type="date" id="fQuandoPicker" onchange="onPickerChange()"
+        style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; margin:0; padding:0; border:none;">
+    </div>
   </div>
-  <input type="date" id="fQuandoPicker" style="position:absolute; left:-9999px; top:0; opacity:0;" onchange="onPickerChange()">
 
   <label class="field-label">Classificação</label>
   <div id="recentChips"></div>
