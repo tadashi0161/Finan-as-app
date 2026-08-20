@@ -146,7 +146,7 @@
 <!-- TELA DE CONFIRMAÇÃO -->
 <div id="confirmScreen">
   <label class="field-label">Valor (R$)</label>
-  <input type="number" step="0.01" id="fValor">
+  <input type="text" id="fValor" inputmode="decimal" placeholder="0,00" oninput="formatValor(this)">
 
   <label class="field-label">Quando (DD/MM)</label>
   <div style="display:flex; gap:8px;">
@@ -169,7 +169,7 @@
   <label class="field-label">Descrição complementar</label>
   <input type="text" id="fDescricao">
 
-  <button class="btn-primary" onclick="confirmSave()">✅ Confirmar e salvar</button>
+  <button class="btn-primary" id="btnConfirmSave" onclick="confirmSave()">✅ Confirmar e salvar</button>
   <button class="btn-secondary" onclick="cancelConfirm()">Cancelar</button>
   <div class="status" id="saveStatus"></div>
 </div>
@@ -235,6 +235,15 @@ async function verifyPin() {
   } catch (err) {
     document.getElementById("pinStatus").innerText = "Erro de conexão: " + err.message;
   }
+}
+
+// ---- Formatação do valor: só aceita vírgula como separador decimal (padrão BR) ----
+function formatValor(el) {
+  let v = el.value.replace(/\./g, ","); // se digitar ponto, converte pra vírgula
+  v = v.replace(/[^\d,]/g, ""); // só permite dígitos e vírgula
+  const partes = v.split(",");
+  if (partes.length > 2) v = partes[0] + "," + partes.slice(1).join(""); // só uma vírgula
+  el.value = v;
 }
 
 // ---- Formatação automática da data (digita "0108" -> vira "01/08") ----
@@ -429,7 +438,9 @@ function handleExtractResult(res) {
   categorias = res.categorias;
   popularMacro();
 
-  document.getElementById("fValor").value = res.data.valor || "";
+  document.getElementById("fValor").value = res.data.valor !== undefined && res.data.valor !== null && res.data.valor !== ""
+    ? String(res.data.valor).replace(".", ",")
+    : "";
   document.getElementById("fQuando").value = res.data.quando || "";
   document.getElementById("fParcelado").value = res.data.parcelado || "";
   document.getElementById("fDescricao").value = res.data.descricao || "";
@@ -445,7 +456,16 @@ function cancelConfirm() {
   document.getElementById("mainScreen").style.display = "block";
 }
 
+let salvando = false;
+
 async function confirmSave() {
+  if (salvando) return; // já está processando, ignora cliques extras
+  salvando = true;
+
+  const btn = document.getElementById("btnConfirmSave");
+  btn.disabled = true;
+  btn.style.opacity = "0.6";
+
   const record = {
     valor: document.getElementById("fValor").value,
     quando: document.getElementById("fQuando").value,
@@ -469,6 +489,10 @@ async function confirmSave() {
     }
   } catch (err) {
     document.getElementById("saveStatus").innerText = "Erro de conexão: " + err.message;
+  } finally {
+    salvando = false;
+    btn.disabled = false;
+    btn.style.opacity = "1";
   }
 }
 </script>
